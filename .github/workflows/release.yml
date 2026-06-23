@@ -17,6 +17,7 @@ jobs:
       matrix:
         include:
           - { target: jetson-agx-thor-devkit, distro-release: "2026", distro-channel: edge }
+          - { target: jetson-agx-thor-devkit, distro-release: "2024", distro-channel: edge-next }
     uses: avocado-linux/actions/.github/workflows/extension-release.yml@v1
     with:
       target:         ${{ matrix.target }}
