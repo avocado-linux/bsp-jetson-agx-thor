@@ -1,0 +1,21 @@
+name: Test
+
+# "Does it build" check on PRs. The matrix lives here (the caller owns it); each leg
+# calls the single-combo reusable helper. Add rows for more targets/feeds as needed.
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: jetson-agx-thor, distro-release: "2026", distro-channel: next }
+    uses: avocado-linux/actions/.github/workflows/extension-test.yml@v1
+    with:
+      target:         ${{ matrix.target }}
+      distro-release: ${{ matrix.distro-release }}
+      distro-channel: ${{ matrix.distro-channel }}
+      repo-url:       ${{ matrix.repo-url }}

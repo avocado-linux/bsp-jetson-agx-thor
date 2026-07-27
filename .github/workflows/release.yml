@@ -1,0 +1,27 @@
+name: Release
+
+# Package + publish on a version tag. The matrix lives here (the caller owns it);
+# each leg calls the single-combo reusable helper. The publish feed is derived from
+# distro-release/distro-channel. The tag must equal the avocado.yaml version.
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+      - '[0-9]+.[0-9]+.[0-9]+-*'
+  workflow_dispatch:
+
+jobs:
+  publish:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: jetson-agx-thor, distro-release: "2026", distro-channel: next }
+    uses: avocado-linux/actions/.github/workflows/extension-release.yml@v1
+    with:
+      target:         ${{ matrix.target }}
+      distro-release: ${{ matrix.distro-release }}
+      distro-channel: ${{ matrix.distro-channel }}
+    secrets:
+      connect-token: ${{ secrets.AVOCADO_CONNECT_TOKEN }}
+      connect-org:   ${{ secrets.AVOCADO_CONNECT_ORG }}

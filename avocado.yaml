@@ -1,16 +1,16 @@
-default_target: jetson-agx-thor-devkit
+default_target: jetson-agx-thor
 supported_targets:
-  - jetson-agx-thor-devkit
+  - jetson-agx-thor
 
 initramfs:
   filesystem: cpio.gz
 
 extensions:
-  avocado-bsp-jetson-agx-thor-devkit:
-    version: 2024.1.0
+  avocado-bsp-jetson-agx-thor:
+    version: 0.1.0
     release: r0
-    summary: Board support for the Nvidia Jetson AGX Thor devkit
-    description: Board support for the Nvidia Jetson AGX Thor devkit
+    summary: Board support for the Nvidia Jetson AGX Thor
+    description: Board support for the Nvidia Jetson AGX Thor
     license: Apache-2.0
     url: https://github.com/avocadolinux/avocado-os
     vendor: Avocado Linux <info@avocadolinux.org>
@@ -47,6 +47,19 @@ extensions:
       kernel-module-nvethernet: '*'
       kernel-module-nvhost-pva: '*'
       kernel-module-nvhwpm: '*'
+      # openrm GPU + display + CUDA stack (tegra264/Thor). Built in the feed as
+      # nv-kernel-module-nvidia*/nvgpu/tegra-dce/tsecriscv (resolve via the
+      # nv-kernel-module-* RPROVIDES aliases) but were omitted from this BSP, so
+      # the device booted with no /dev/nvidia* and `modprobe nvidia` failing.
+      # nvidia + tegra-dce + tsecriscv are required for CUDA; nvidia-drm/-modeset
+      # for display; nvidia-uvm for CUDA unified memory; nvgpu mirrors the Orin BSP.
+      kernel-module-nvgpu: '*'
+      kernel-module-nvidia: '*'
+      kernel-module-nvidia-drm: '*'
+      kernel-module-nvidia-modeset: '*'
+      kernel-module-nvidia-uvm: '*'
+      kernel-module-tegra-dce: '*'
+      kernel-module-tsecriscv: '*'
       kernel-module-nvidia-vrs-pseq: '*'
       kernel-module-nvmap: '*'
       kernel-module-nvme: '*'
@@ -73,7 +86,6 @@ extensions:
       kernel-module-tegra234-oc-event: '*'
       kernel-module-tegra23x-psc: '*'
       kernel-module-thermal-trip-event: '*'
-      kernel-module-tsecriscv: '*'
       kernel-module-zram: '*'
       kernel-module-zsmalloc: '*'
       linux-firmware-rtl8168: '*'
@@ -81,4 +93,4 @@ extensions:
       tegra-redundant-boot-base: '*'
 
 sdk:
-  image: docker.io/avocadolinux/sdk:{{ env.AVOCADO_DISTRO_RELEASE }}-{{ env.AVOCADO_DISTRO_CHANNEL }}
+  image: docker.io/avocadolinux/sdk:{{ env.AVOCADO_DISTRO_RELEASE }}
