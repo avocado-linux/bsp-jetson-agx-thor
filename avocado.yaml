@@ -7,7 +7,7 @@ initramfs:
 
 extensions:
   avocado-bsp-jetson-agx-thor:
-    version: 0.1.0
+    version: 0.1.1
     release: r0
     summary: Board support for the Nvidia Jetson AGX Thor
     description: Board support for the Nvidia Jetson AGX Thor
@@ -18,6 +18,16 @@ extensions:
     types:
       - sysext
       - confext
+
+    # tegra-drm has to be loaded explicitly: all 108 of its modaliases are `of:`
+    # matches for tegra124..tegra194 SOR/display nodes, none for tegra264, and on
+    # Thor it attaches as a host1x driver rather than binding a DT node of its
+    # own. So there is no modalias for udev to autoload it from -- installing
+    # nv-kernel-module-tegra-drm gets the .ko onto the device but nothing loads
+    # it, and libcuda's cuInit still fails with 801 because the host1x DRM child
+    # never appears. See the tegra-drm note in packages below.
+    modprobe:
+      - tegra-drm
 
     on_merge:
       - udevadm control --reload
@@ -47,19 +57,101 @@ extensions:
       kernel-module-nvethernet: '*'
       kernel-module-nvhost-pva: '*'
       kernel-module-nvhwpm: '*'
-      # openrm GPU + display + CUDA stack (tegra264/Thor). Built in the feed as
-      # nv-kernel-module-nvidia*/nvgpu/tegra-dce/tsecriscv (resolve via the
-      # nv-kernel-module-* RPROVIDES aliases) but were omitted from this BSP, so
-      # the device booted with no /dev/nvidia* and `modprobe nvidia` failing.
-      # nvidia + tegra-dce + tsecriscv are required for CUDA; nvidia-drm/-modeset
-      # for display; nvidia-uvm for CUDA unified memory; nvgpu mirrors the Orin BSP.
-      kernel-module-nvgpu: '*'
+      # --- openrm GPU + display + CUDA stack (tegra264/Thor) ---
+      #
+      # This block is the hand-transcribed equivalent of what upstream pulls via
+      # MACHINE_EXTRA_RDEPENDS. Avocado's minimal rootfs drops
+      # MACHINE_EXTRA_R{DEPENDS,RECOMMENDS}, so anything the machine .conf lists
+      # has to be re-listed here or it silently never reaches the device. The two
+      # upstream lines this mirrors are:
+      #
+      #   tegra-common.inc: MACHINE_EXTRA_RDEPENDS = "tegra-nvsciipc \
+      #       tegra-configs-sysctl tegra-nvfancontrol tegra-configs-udev \
+      #       tegra-redundant-boot nvidia-kernel-oot-display \
+      #       tegra-configs-display-driver"
+      #   tegra264.inc:     MACHINE_EXTRA_RDEPENDS += "nvidia-kernel-oot-compute \
+      #       nv-kernel-module-nvpmodel-clk-cap"
+      #
+      # nvidia-kernel-oot-display = nvidia + nvidia-drm + nvidia-modeset +
+      # tegra-dce + tegra-drm; nvidia-kernel-oot-compute = nvidia-uvm. All of them
+      # are needed for CUDA, not just the obviously-compute ones:
+      #   * tegra-dce + tsecriscv  -- nvidia.ko `depends` on both
+      #   * nvidia-uvm             -- CUDA unified memory
+      #   * tegra-drm              -- NOT optional and NOT display-only. libcuda
+      #     probes host1x for its DRM child
+      #     (/sys/bus/platform/drivers/tegra-host1x/*.host1x/*.host1x.drm/drm)
+      #     during cuInit; with tegra-drm absent that node never appears and
+      #     cuInit returns CUDA_ERROR_NOT_SUPPORTED (801) with no kernel-side
+      #     error at all. dnf pulls its cec / drm-display-helper /
+      #     drm-dp-aux-bus deps automatically.
+      #
+      # tegra-drm is spelled nv-kernel-module-* here, unlike its siblings. It is
+      # the one module in this list where the unprefixed name is a REAL package
+      # and not just an RPROVIDES alias: the in-tree linux-noble-nvidia-tegra
+      # build ships kernel-module-tegra-drm (6.8.12-r0.0) and the OOT build ships
+      # nv-kernel-module-tegra-drm (39.2.0-r0.1), and BOTH Provide the bare
+      # kernel-module-tegra-drm. dnf resolves the bare name to the real package,
+      # i.e. the in-tree one -- which is the old tegra124..194 display driver, has
+      # no tegra264 support, and leaves CUDA broken exactly as if tegra-drm were
+      # missing. Ask for the nv- name so the OOT module is unambiguous.
+      #
+      # Deliberately NO kernel-module-nvgpu. Thor's GPU is a PCIe-enumerated
+      # Blackwell part (10DE:2B00) and nvidia.ko (openrm) is its one driver, for
+      # compute and display both. nvgpu.ko carries a PCI modalias for that same
+      # 10DE:2B00 device, so shipping it alongside nvidia.ko lets the two race for
+      # the PCI bind. When nvgpu wins, NVRM never probes the GPU ("GPU
+      # 0000:01:00.0 is already bound to nvgpu", no /dev/nvidia0). Nothing in the
+      # tegra264 feed requires or recommends it, so omitting it here is what keeps
+      # it off the device -- and tegra-configs-display-driver below hard-blocks it
+      # regardless.
+      #
+      # The Orin BSP does list nvgpu, correctly: on tegra234 the iGPU is an OF
+      # platform device (nvidia,ga10b) that nvgpu owns while nvidia.ko drives
+      # display only, so there is no PCI device for the two to contend over. Do
+      # not copy that list here.
       kernel-module-nvidia: '*'
       kernel-module-nvidia-drm: '*'
       kernel-module-nvidia-modeset: '*'
       kernel-module-nvidia-uvm: '*'
       kernel-module-tegra-dce: '*'
       kernel-module-tsecriscv: '*'
+      nv-kernel-module-tegra-drm: '*'
+
+      # NVIDIA's own GPU-stack configuration, selected per SoC upstream by
+      # tegra-configs' GPU_VARIANT (openrm-l4t on tegra264, nvgpu-l4t on
+      # tegra234). Without these the driver stack comes up by modalias race and
+      # with no device nodes, which is what produced CUDA 801 on this board:
+      #
+      #   tegra-configs-display-driver
+      #     /etc/modprobe.d/nv-display.conf -- `install nvgpu /bin/false` (the
+      #     upstream way to keep nvgpu off Thor), plus the `install nvidia` chain
+      #     that loads nv-gpu-static-pg with gpu_pg_mask BEFORE nvidia and then
+      #     nvidia-uvm, and `options nvidia-drm modeset=1`.
+      #     /etc/depmod.d/nv-display.conf pins the modules to
+      #     updates/opensource-gpu-disp. Also ships nv-load-display-modules and
+      #     its systemd-modules-load drop-in.
+      #   tegra-configs-udev
+      #     99-tegra-devices.rules -- creates /dev/nvidia0, /dev/nvidiactl,
+      #     /dev/nvidia-modeset and /dev/nvidia-uvm{,-tools} on module add. There
+      #     is no nvidia-modprobe on Avocado and openrm does not make these nodes
+      #     itself, so without this rule /dev/nvidia0 never exists. Also handles
+      #     /dev/v4l2-nvdec|nvenc for the 10DE:2B00 GPU and node ownership.
+      #   tegra-nvpmodel-base
+      #     /opt/nvidia/l4t-gpusetup/gpu_pg_mask, read by the `install nvidia`
+      #     chain above (tegra264-only FILES entry upstream).
+      #   tegra-nvpower
+      #     /usr/libexec/nvpower.sh, invoked by 99-tegra-devices.rules on GPU bind
+      #     to apply the GPU/VIC/NVDEC/NVENC power policy.
+      #   tegra-nvsciipc + tegra-configs-sysctl
+      #     nvsciipc endpoint setup (NvSci, and the DCE admin IPC channels) and
+      #     the L4T sysctl profile. Both are in the upstream RDEPENDS line and the
+      #     Orin BSP already carries tegra-nvsciipc.
+      tegra-configs-display-driver: '*'
+      tegra-configs-sysctl: '*'
+      tegra-configs-udev: '*'
+      tegra-nvpmodel-base: '*'
+      tegra-nvpower: '*'
+      tegra-nvsciipc: '*'
       kernel-module-nvidia-vrs-pseq: '*'
       kernel-module-nvmap: '*'
       kernel-module-nvme: '*'

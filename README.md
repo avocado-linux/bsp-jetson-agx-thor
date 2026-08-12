@@ -1,16 +1,16 @@
-# bsp-jetson-agx-thor-devkit
+# bsp-jetson-agx-thor
 
-Board support for the Nvidia Jetson AGX Thor devkit
+Board support for the Nvidia Jetson AGX Thor
 
 ## Using this extension
 
-`bsp-jetson-agx-thor-devkit` is an [Avocado](https://avocadolinux.org) extension — a reusable fragment of
+`bsp-jetson-agx-thor` is an [Avocado](https://avocadolinux.org) extension — a reusable fragment of
 build- and runtime-configuration that you compose into your own Avocado project. To use it,
 declare it as a package-sourced extension in your `avocado.yaml` and add it to a runtime:
 
 ```yaml
 extensions:
-  avocado-bsp-jetson-agx-thor-devkit:
+  avocado-bsp-jetson-agx-thor:
     source:
       type: package
       version: "*"        # or pin an exact version
@@ -18,7 +18,7 @@ extensions:
 runtimes:
   my-runtime:
     extensions:
-      - avocado-bsp-jetson-agx-thor-devkit
+      - avocado-bsp-jetson-agx-thor
 ```
 
 Then install and build:
