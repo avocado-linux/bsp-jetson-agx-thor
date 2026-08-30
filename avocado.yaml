@@ -165,7 +165,6 @@ extensions:
       kernel-module-pwm-tegra: '*'
       kernel-module-pwm-tegra-tachometer: '*'
       kernel-module-r8126: '*'
-      kernel-module-ramoops: '*'
       kernel-module-realtek: '*'
       kernel-module-sch-fq-codel: '*'
       kernel-module-spi-tegra114: '*'
@@ -183,6 +182,25 @@ extensions:
       linux-firmware-rtl8168: '*'
       swupdate: '*'
       tegra-redundant-boot-base: '*'
+
+    # ========================================================================
+    # Kernel-conditional packages.
+    #
+    # jetson-agx-thor is a multi-kernel target: the default multiconfig builds
+    # upstream linux-yocto and the `jetson-l4t` mc builds the L4T 6.8 kernel,
+    # and both land in one feed. avocado-cli suffixes kernel-family package
+    # names with the resolved KERNEL_VERSION, so a module only one kernel
+    # builds must be scoped here or the install fails outright with
+    # "Unable to find a match".
+    #
+    # ramoops (CONFIG_PSTORE_RAM) is enabled in the L4T kernel's config but not
+    # in the upstream one, so it is L4T-only. `kernel-<spec>` globs are prefix
+    # matches, so 6.8.* matches 6.8.12-l4t-r39.2.0-1021.21 and does not match
+    # 6.18.35-yocto-standard.
+    # ========================================================================
+    kernel-6.8.*:
+      packages:
+        kernel-module-ramoops: '*'
 
 sdk:
   image: docker.io/avocadolinux/sdk:{{ env.AVOCADO_DISTRO_RELEASE }}
