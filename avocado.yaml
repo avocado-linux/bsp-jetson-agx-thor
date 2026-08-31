@@ -151,6 +151,15 @@ extensions:
       tegra-configs-udev: '*'
       tegra-nvpmodel-base: '*'
       tegra-nvpower: '*'
+      # Fan control daemon. It is in the upstream MACHINE_EXTRA_RDEPENDS line
+      # quoted in the comment above, but was never transcribed into this list --
+      # and Avocado's minimal rootfs drops MACHINE_EXTRA_RDEPENDS, so nothing
+      # else pulls it in. Without it nothing drives the PWM and the fan sits at
+      # its hardware default, i.e. full speed, forever. Verified on a MIC-743:
+      # `command -v nvfancontrol` -> absent, no pwmfan hwmon, fans at 100%.
+      # The per-machine profile is selected upstream via NVFANCONTROL
+      # (nvfancontrol_p3834_0008_p4071_0000 on tegra264).
+      tegra-nvfancontrol: '*'
       tegra-nvsciipc: '*'
       kernel-module-nvidia-vrs-pseq: '*'
       kernel-module-nvmap: '*'
