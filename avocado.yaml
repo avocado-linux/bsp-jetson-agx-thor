@@ -164,7 +164,9 @@ extensions:
       kernel-module-pwm-fan: '*'
       kernel-module-pwm-tegra: '*'
       kernel-module-pwm-tegra-tachometer: '*'
-      kernel-module-r8126: '*'
+      # Ethernet is kernel-dependent and lives in the kernel-* blocks below.
+      # kernel-module-realtek (the PHY driver) exists for both kernels and
+      # stays here.
       kernel-module-realtek: '*'
       kernel-module-sch-fq-codel: '*'
       kernel-module-spi-tegra114: '*'
@@ -200,7 +202,27 @@ extensions:
     # ========================================================================
     kernel-6.8.*:
       packages:
+        # NVIDIA's OOT r8126 for the RTL8126. Real driver on this kernel
+        # (237,888 bytes) and what the L4T BSP ships.
+        kernel-module-r8126: '*'
         kernel-module-ramoops: '*'
+
+    # Upstream linux-yocto.
+    kernel-6.18.*:
+      packages:
+        # The OOT r8126 does NOT work on the upstream kernel: it builds to a
+        # 4,312-byte stub (vs 237,888 on L4T), loads with rc=0, registers no
+        # PCI driver, and has no modalias -- so 10ec:8126 sits unbound and
+        # there is no ethernet interface at all. Verified on an AGX Thor.
+        #
+        # Mainline r8169 claims the same device on this kernel:
+        #   alias: pci:v000010ECd00008126sv*sd*bc*sc*i*
+        # This is the same split p4071.inc makes via LINUX_ETHERNET vs
+        # NVIDIA_ETHERNET; avocado's minimal rootfs drops
+        # MACHINE_EXTRA_RRECOMMENDS, so it has to be re-listed here.
+        # The two drive the same silicon and must not both be installed.
+        kernel-module-r8169: '*'
+        linux-firmware-rtl-nic: '*'
 
 sdk:
   image: docker.io/avocadolinux/sdk:{{ env.AVOCADO_DISTRO_RELEASE }}
