@@ -7,7 +7,7 @@ initramfs:
 
 extensions:
   avocado-bsp-jetson-agx-thor:
-    version: 0.1.1
+    version: 0.1.2
     release: r0
     summary: Board support for the Nvidia Jetson AGX Thor
     description: Board support for the Nvidia Jetson AGX Thor
