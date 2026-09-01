@@ -151,6 +151,15 @@ extensions:
       tegra-configs-udev: '*'
       tegra-nvpmodel-base: '*'
       tegra-nvpower: '*'
+      # Fan control daemon. It is in the upstream MACHINE_EXTRA_RDEPENDS line
+      # quoted in the comment above, but was never transcribed into this list --
+      # and Avocado's minimal rootfs drops MACHINE_EXTRA_RDEPENDS, so nothing
+      # else pulls it in. Without it nothing drives the PWM and the fan sits at
+      # its hardware default, i.e. full speed, forever. Verified on a MIC-743:
+      # `command -v nvfancontrol` -> absent, no pwmfan hwmon, fans at 100%.
+      # The per-machine profile is selected upstream via NVFANCONTROL
+      # (nvfancontrol_p3834_0008_p4071_0000 on tegra264).
+      tegra-nvfancontrol: '*'
       tegra-nvsciipc: '*'
       kernel-module-nvidia-vrs-pseq: '*'
       kernel-module-nvmap: '*'
@@ -164,8 +173,9 @@ extensions:
       kernel-module-pwm-fan: '*'
       kernel-module-pwm-tegra: '*'
       kernel-module-pwm-tegra-tachometer: '*'
-      kernel-module-r8126: '*'
-      kernel-module-ramoops: '*'
+      # Ethernet is kernel-dependent and lives in the kernel-* blocks below.
+      # kernel-module-realtek (the PHY driver) exists for both kernels and
+      # stays here.
       kernel-module-realtek: '*'
       kernel-module-sch-fq-codel: '*'
       kernel-module-spi-tegra114: '*'
@@ -183,6 +193,45 @@ extensions:
       linux-firmware-rtl8168: '*'
       swupdate: '*'
       tegra-redundant-boot-base: '*'
+
+    # ========================================================================
+    # Kernel-conditional packages.
+    #
+    # jetson-agx-thor is a multi-kernel target: the default multiconfig builds
+    # upstream linux-yocto and the `jetson-l4t` mc builds the L4T 6.8 kernel,
+    # and both land in one feed. avocado-cli suffixes kernel-family package
+    # names with the resolved KERNEL_VERSION, so a module only one kernel
+    # builds must be scoped here or the install fails outright with
+    # "Unable to find a match".
+    #
+    # ramoops (CONFIG_PSTORE_RAM) is enabled in the L4T kernel's config but not
+    # in the upstream one, so it is L4T-only. `kernel-<spec>` globs are prefix
+    # matches, so 6.8.* matches 6.8.12-l4t-r39.2.0-1021.21 and does not match
+    # 6.18.35-yocto-standard.
+    # ========================================================================
+    kernel-6.8.*:
+      packages:
+        # NVIDIA's OOT r8126 for the RTL8126. Real driver on this kernel
+        # (237,888 bytes) and what the L4T BSP ships.
+        kernel-module-r8126: '*'
+        kernel-module-ramoops: '*'
+
+    # Upstream linux-yocto.
+    kernel-6.18.*:
+      packages:
+        # The OOT r8126 does NOT work on the upstream kernel: it builds to a
+        # 4,312-byte stub (vs 237,888 on L4T), loads with rc=0, registers no
+        # PCI driver, and has no modalias -- so 10ec:8126 sits unbound and
+        # there is no ethernet interface at all. Verified on an AGX Thor.
+        #
+        # Mainline r8169 claims the same device on this kernel:
+        #   alias: pci:v000010ECd00008126sv*sd*bc*sc*i*
+        # This is the same split p4071.inc makes via LINUX_ETHERNET vs
+        # NVIDIA_ETHERNET; avocado's minimal rootfs drops
+        # MACHINE_EXTRA_RRECOMMENDS, so it has to be re-listed here.
+        # The two drive the same silicon and must not both be installed.
+        kernel-module-r8169: '*'
+        linux-firmware-rtl-nic: '*'
 
 sdk:
   image: docker.io/avocadolinux/sdk:{{ env.AVOCADO_DISTRO_RELEASE }}
