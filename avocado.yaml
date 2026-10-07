@@ -233,5 +233,48 @@ extensions:
         kernel-module-r8169: '*'
         linux-firmware-rtl-nic: '*'
 
+rubicon:
+  # Jetson AGX Thor Developer Kit through its TOPO debug MCU (0955:7045,
+  # the debug USB-C under the lid) on the Rubicon's USB port, beside the
+  # flashing port (USB-C next to HDMI). boardctl, from the SDK, presses
+  # power, reset and force-recovery through it: no relays, no wiring. The
+  # same MCU is the console (four CDC-ACM ports).
+  console:
+    port: 0 # UNVERIFIED: which of the TOPO's four ports is UART3
+  run:
+    # Forced off, then FORCE_RECOVERY held while ONKEY powers it up: RCM
+    # from any state. Then hold the APX device and the flash initramfs'
+    # gadget while they enumerate in turn. Exact ids, not 0955:*, which
+    # would take the TOPO (the console) too.
+    thor-enter-recovery:
+      - with_usb: { id: "0955:7045", run: [boardctl, --target, thor-jetson-devkit, recovery] }
+      - hold_usb: ["0955:7026", "1d6b:*"]
+      - wait_usb: { id: "0955:7026", timeout_s: 60 }
+    # T264 stays in RCM across the flash initramfs' warm reboot; SYS_RESET
+    # boots the flashed system (initrd-flash.sh cannot reach the TOPO here:
+    # the console holds it).
+    thor-boot-flashed:
+      - with_usb: { id: "0955:7045", run: [boardctl, --target, thor-jetson-devkit, reset] }
+      - run: thor-boot-check
+    # Boot whatever is installed: forced off, then ONKEY.
+    thor-boot:
+      - with_usb: { id: "0955:7045", run: [boardctl, --target, thor-jetson-devkit, power_on] }
+      - run: thor-boot-check
+    thor-power-off:
+      - with_usb: { id: "0955:7045", run: [boardctl, --target, thor-jetson-devkit, power_off] }
+    # The provisioned OS reaching a login prompt on the TOPO console.
+    thor-boot-check:
+      - console_expect:
+          markers: ["Welcome to Avocado OS", "login:"]
+          timeout_s: 300
+
+provision:
+  tegraflash: &rubicon
+    rubicon: { before: thor-enter-recovery, after: thor-boot-flashed }
+  tegraflash-emmc: *rubicon
+  tegraflash-mmc: *rubicon
+  tegraflash-nvme: *rubicon
+  tegraflash-sd: *rubicon
+
 sdk:
   image: docker.io/avocadolinux/sdk:{{ env.AVOCADO_DISTRO_RELEASE }}
