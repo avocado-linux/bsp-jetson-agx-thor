@@ -257,13 +257,14 @@ rubicon:
       - out: { power: "on" }
       - wait_ms: 3000
     # Forced off, then FORCE_RECOVERY held while ONKEY powers it up: RCM
-    # from any state. Then hold the APX device and the flash initramfs'
-    # gadget while they enumerate in turn. Exact ids, not 0955:*, which
-    # would take the TOPO (the console) too.
+    # from any state. Then hold what the flash enumerates as, in turn: the
+    # APX device (0955:7026), the unified flash kernel's adb gadget
+    # (0955:7100) and an Avocado flash initramfs' gadget (1d6b:*). Exact
+    # ids, not 0955:*, which would take the TOPO (the console) too.
     thor-enter-recovery:
       - run: thor-power-cycle
       - with_usb: { id: "0955:7045", run: [boardctl, --target, thor-jetson-devkit, recovery] }
-      - hold_usb: ["0955:7026", "1d6b:*"]
+      - hold_usb: ["0955:7026", "0955:7100", "1d6b:*"]
       - wait_usb: { id: "0955:7026", timeout_s: 60 }
     # T264 stays in RCM across the flash initramfs' warm reboot; SYS_RESET
     # boots the flashed system (initrd-flash.sh cannot reach the TOPO here:
