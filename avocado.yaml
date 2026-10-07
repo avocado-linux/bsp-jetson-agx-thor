@@ -239,10 +239,11 @@ rubicon:
   # flashing port (USB-C next to HDMI). boardctl, from the SDK, presses
   # power, reset and force-recovery through it: no button wiring. The
   # same MCU is the console (four CDC-ACM ports).
-  # power: a relay in the kit's supply (for a USB-C PD brick, its AC side):
-  # a hard power cycle for a kit that stops answering, since the TOPO is
-  # powered from USB and outlives one. Unwired, the steps that switch it
-  # do nothing.
+  # power: a relay in the kit's supply (for a USB-C PD brick, its AC side).
+  # Required: the TOPO is powered by the kit, not by USB, so with the kit's
+  # supply off there is nothing for boardctl to talk to (verified on a Thor
+  # devkit: 0955:7045 enumerates about 2 s after power returns). It also
+  # hard-resets a kit that stops answering.
   wiring:
     power: "relay in the kit's supply (AC side of the USB-C PD adapter)"
   console:
