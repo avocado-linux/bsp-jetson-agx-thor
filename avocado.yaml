@@ -237,16 +237,30 @@ rubicon:
   # Jetson AGX Thor Developer Kit through its TOPO debug MCU (0955:7045,
   # the debug USB-C under the lid) on the Rubicon's USB port, beside the
   # flashing port (USB-C next to HDMI). boardctl, from the SDK, presses
-  # power, reset and force-recovery through it: no relays, no wiring. The
+  # power, reset and force-recovery through it: no button wiring. The
   # same MCU is the console (four CDC-ACM ports).
+  # power: a relay in the kit's supply (for a USB-C PD brick, its AC side):
+  # a hard power cycle for a kit that stops answering, since the TOPO is
+  # powered from USB and outlives one. Unwired, the steps that switch it
+  # do nothing.
+  wiring:
+    power: "relay in the kit's supply (AC side of the USB-C PD adapter)"
   console:
     port: 0 # UNVERIFIED: which of the TOPO's four ports is UART3
   run:
+    # Supply off and back: clears a kit that is stuck. The kit may come up
+    # on its own; the boardctl steps after it start with a forced off.
+    thor-power-cycle:
+      - out: { power: "off" }
+      - wait_ms: 5000
+      - out: { power: "on" }
+      - wait_ms: 3000
     # Forced off, then FORCE_RECOVERY held while ONKEY powers it up: RCM
     # from any state. Then hold the APX device and the flash initramfs'
     # gadget while they enumerate in turn. Exact ids, not 0955:*, which
     # would take the TOPO (the console) too.
     thor-enter-recovery:
+      - run: thor-power-cycle
       - with_usb: { id: "0955:7045", run: [boardctl, --target, thor-jetson-devkit, recovery] }
       - hold_usb: ["0955:7026", "1d6b:*"]
       - wait_usb: { id: "0955:7026", timeout_s: 60 }
@@ -258,6 +272,7 @@ rubicon:
       - run: thor-boot-check
     # Boot whatever is installed: forced off, then ONKEY.
     thor-boot:
+      - run: thor-power-cycle
       - with_usb: { id: "0955:7045", run: [boardctl, --target, thor-jetson-devkit, power_on] }
       - run: thor-boot-check
     thor-power-off:
