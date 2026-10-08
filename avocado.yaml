@@ -224,6 +224,11 @@ extensions:
         # (237,888 bytes) and what the L4T BSP ships.
         kernel-module-r8126: '*'
         kernel-module-ramoops: '*'
+        # Wi-Fi: the devkit's RTL8852CE (10ec:c852). NVIDIA's OOT driver and
+        # its tegra-firmware on this kernel, as the L4T BSP ships (same as the
+        # MIC-743 BSP).
+        nv-kernel-module-rtl8852ce: '*'
+        tegra-firmware-rtl8852: '*'
 
     # Upstream linux-yocto.
     kernel-6.18.*:
@@ -241,6 +246,13 @@ extensions:
         # The two drive the same silicon and must not both be installed.
         kernel-module-r8169: '*'
         linux-firmware-rtl-nic: '*'
+        # Wi-Fi: mainline rtw89 drives the same RTL8852CE on this kernel, with
+        # linux-firmware. Without these 10ec:c852 enumerates with no driver.
+        kernel-module-rtw89-core: '*'
+        kernel-module-rtw89-pci: '*'
+        kernel-module-rtw89-8852c: '*'
+        kernel-module-rtw89-8852ce: '*'
+        linux-firmware-rtl8852: '*'
 
 sdk:
   image: docker.io/avocadolinux/sdk:{{ env.AVOCADO_DISTRO_RELEASE }}
