@@ -7,7 +7,7 @@ initramfs:
 
 extensions:
   avocado-bsp-jetson-agx-thor:
-    version: 0.1.2
+    version: 0.1.3
     release: r0
     summary: Board support for the Nvidia Jetson AGX Thor
     description: Board support for the Nvidia Jetson AGX Thor
@@ -28,6 +28,9 @@ extensions:
     # never appears. See the tegra-drm note in packages below.
     modprobe:
       - tegra-drm
+      # i2c-dev never autoloads (the Tegra I2C controllers load from the
+      # device tree); without it there is no /dev/i2c-*.
+      - i2c-dev
 
     on_merge:
       - udevadm control --reload
@@ -42,6 +45,12 @@ extensions:
     # auto-suffixes with -${KERNEL_VERSION} at install time so dnf pins to
     # the resolver-selected kernel rather than NVR-tie-breaking.
     packages:
+      # I2C: modules on the L4T 6.8 kernel, built in on linux-yocto 6.18 (whose
+      # kernel package provides these names), so they belong in the common
+      # list. Without them a 6.8 system has no I2C buses at all.
+      kernel-module-i2c-tegra: '*'
+      kernel-module-i2c-tegra-bpmp: '*'
+      kernel-module-i2c-dev: '*'
       kernel-module-crypto-engine: '*'
       kernel-module-host1x: '*'
       kernel-module-host1x-fence: '*'
@@ -215,6 +224,11 @@ extensions:
         # (237,888 bytes) and what the L4T BSP ships.
         kernel-module-r8126: '*'
         kernel-module-ramoops: '*'
+        # Wi-Fi: the devkit's RTL8852CE (10ec:c852). NVIDIA's OOT driver and
+        # its tegra-firmware on this kernel, as the L4T BSP ships (same as the
+        # MIC-743 BSP).
+        nv-kernel-module-rtl8852ce: '*'
+        tegra-firmware-rtl8852: '*'
 
     # Upstream linux-yocto.
     kernel-6.18.*:
@@ -232,6 +246,13 @@ extensions:
         # The two drive the same silicon and must not both be installed.
         kernel-module-r8169: '*'
         linux-firmware-rtl-nic: '*'
+        # Wi-Fi: mainline rtw89 drives the same RTL8852CE on this kernel, with
+        # linux-firmware. Without these 10ec:c852 enumerates with no driver.
+        kernel-module-rtw89-core: '*'
+        kernel-module-rtw89-pci: '*'
+        kernel-module-rtw89-8852c: '*'
+        kernel-module-rtw89-8852ce: '*'
+        linux-firmware-rtl8852: '*'
 
 sdk:
   image: docker.io/avocadolinux/sdk:{{ env.AVOCADO_DISTRO_RELEASE }}
